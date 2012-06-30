@@ -54,6 +54,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.DialogInterface.OnClickListener;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -71,6 +72,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Parcelable;
 import android.os.SystemProperties;
+import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.Contacts;
@@ -146,6 +148,8 @@ import com.android.mms.util.AddressUtils;
 import com.android.mms.util.PhoneNumberFormatter;
 import com.android.mms.util.SendingProgressTokenManager;
 import com.android.mms.util.SmileyParser;
+import com.android.mms.util.EarDetector;
+import com.android.mms.util.EarDetector.EarDetectorListener;
 
 import android.text.InputFilter.LengthFilter;
 
@@ -164,7 +168,7 @@ import android.text.InputFilter.LengthFilter;
  */
 public class ComposeMessageActivity extends Activity
         implements View.OnClickListener, TextView.OnEditorActionListener,
-        MessageStatusListener, Contact.UpdateListener {
+        MessageStatusListener, Contact.UpdateListener, EarDetectorListener {
     public static final int REQUEST_CODE_ATTACH_IMAGE     = 100;
     public static final int REQUEST_CODE_TAKE_PICTURE     = 101;
     public static final int REQUEST_CODE_ATTACH_VIDEO     = 102;
@@ -242,6 +246,7 @@ public class ComposeMessageActivity extends Activity
     private BackgroundQueryHandler mBackgroundQueryHandler;
 
     private Conversation mConversation;     // Conversation we are working in
+    private EarDetector mEarDetector;       // EarDetector for smart calling
 
     private boolean mExitOnSent;            // Should we finish() after sending a message?
                                             // TODO: mExitOnSent is obsolete -- remove
@@ -1818,6 +1823,7 @@ public class ComposeMessageActivity extends Activity
 
         mContentResolver = getContentResolver();
         mBackgroundQueryHandler = new BackgroundQueryHandler(mContentResolver);
+        mEarDetector = new EarDetector(this, this);
 
         initialize(savedInstanceState, 0);
 
@@ -2129,9 +2135,19 @@ public class ComposeMessageActivity extends Activity
         }
     }
 
+    private boolean isEarDetectorAllowed() {
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        return p.getBoolean(MessagingPreferenceActivity.EAR_DETECTOR_ENABLED, false) &&
+                mEarDetector.isInitzialized();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (isEarDetectorAllowed()) {
+            mEarDetector.enable(true);
+        }
 
         // OLD: get notified of presence updates to update the titlebar.
         // NEW: we are using ContactHeaderWidget which displays presence, but updating presence
@@ -2163,6 +2179,10 @@ public class ComposeMessageActivity extends Activity
     @Override
     protected void onPause() {
         super.onPause();
+
+        if (isEarDetectorAllowed()) {
+            mEarDetector.enable(false);
+        }
 
         // OLD: stop getting notified of presence updates to update the titlebar.
         // NEW: we are using ContactHeaderWidget which displays presence, but updating presence
@@ -2270,6 +2290,13 @@ public class ComposeMessageActivity extends Activity
             }
             mTextEditor.setFocusable(false);
             mTextEditor.setHint(R.string.open_keyboard_to_compose_message);
+        }
+    }
+
+    @Override
+    public void onEarDetected(boolean earDetected) {
+        if (earDetected) {
+            dialRecipient();
         }
     }
 

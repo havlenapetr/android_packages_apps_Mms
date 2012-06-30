@@ -42,6 +42,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import com.android.mms.util.Recycler;
+import com.android.mms.util.EarDetector;
 
 /**
  * With this activity, users can set preferences for MMS and SMS and
@@ -62,6 +63,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String AUTO_RETRIEVAL           = "pref_key_mms_auto_retrieval";
     public static final String RETRIEVAL_DURING_ROAMING = "pref_key_mms_retrieval_during_roaming";
     public static final String AUTO_DELETE              = "pref_key_auto_delete";
+    public static final String EAR_DETECTOR_ENABLED     = "pref_key_ear_detector";
 
     // Menu entries
     private static final int MENU_RESTORE_DEFAULTS    = 1;
@@ -75,6 +77,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private Preference mClearHistoryPref;
     private ListPreference mVibrateWhenPref;
     private CheckBoxPreference mEnableNotificationsPref;
+    private CheckBoxPreference mEnableEarDetectorPref;
     private Recycler mSmsRecycler;
     private Recycler mMmsRecycler;
     private static final int CONFIRM_CLEAR_SEARCH_HISTORY_DIALOG = 3;
@@ -113,6 +116,20 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         mClearHistoryPref = findPreference("pref_key_mms_clear_history");
         mEnableNotificationsPref = (CheckBoxPreference) findPreference(NOTIFICATION_ENABLED);
         mVibrateWhenPref = (ListPreference) findPreference(NOTIFICATION_VIBRATE_WHEN);
+        mEnableEarDetectorPref = (CheckBoxPreference) findPreference(EAR_DETECTOR_ENABLED);
+
+        PreferenceCategory miscCategory =
+                (PreferenceCategory) findPreference("pref_key_misc_settings");
+        if (!EarDetector.isSupported(this)) {
+            miscCategory.removePreference(mEnableEarDetectorPref);
+        }
+
+        /* if misc category is empty, remove it */
+        if (miscCategory.getPreferenceCount() == 0) {
+            PreferenceScreen screen =
+                    (PreferenceScreen) findPreference("pref_key_preference_screen");
+            screen.removePreference(miscCategory);
+        }
 
         mVibrateEntries = getResources().getTextArray(R.array.prefEntries_vibrateWhen);
         mVibrateValues = getResources().getTextArray(R.array.prefValues_vibrateWhen);
@@ -174,6 +191,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         }
 
         setEnabledNotificationsPref();
+        setEnabledEarDetectorPref();
 
         // If needed, migrate vibration setting from a previous version
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -198,7 +216,13 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private void setEnabledNotificationsPref() {
         // The "enable notifications" setting is really stored in our own prefs. Read the
         // current value and set the checkbox to match.
-        mEnableNotificationsPref.setChecked(getNotificationEnabled(this));
+        mEnableNotificationsPref.setChecked(
+                getPrefEnabled(NOTIFICATION_ENABLED, true, this));
+    }
+
+    private void setEnabledEarDetectorPref() {
+        mEnableEarDetectorPref.setChecked(
+                getPrefEnabled(EAR_DETECTOR_ENABLED, false, this));
     }
 
     private void setSmsDisplayLimit() {
@@ -260,7 +284,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
             return true;
         } else if (preference == mEnableNotificationsPref) {
             // Update the actual "enable notifications" value that is stored in secure settings.
-            enableNotifications(mEnableNotificationsPref.isChecked(), this);
+            enablePref(NOTIFICATION_ENABLED, mEnableNotificationsPref.isChecked(), this);
+        } else if (preference == mEnableEarDetectorPref) {
+            enablePref(EAR_DETECTOR_ENABLED, mEnableEarDetectorPref.isChecked(), this);
         }
 
         return super.onPreferenceTreeClick(preferenceScreen, preference);
@@ -307,19 +333,18 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         return super.onCreateDialog(id);
     }
 
-    public static boolean getNotificationEnabled(Context context) {
+    public static boolean getPrefEnabled(String key, boolean defValue, Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean notificationsEnabled =
-            prefs.getBoolean(MessagingPreferenceActivity.NOTIFICATION_ENABLED, true);
+        boolean notificationsEnabled = prefs.getBoolean(key, defValue);
         return notificationsEnabled;
     }
 
-    public static void enableNotifications(boolean enabled, Context context) {
+    public static void enablePref(String key, boolean enabled, Context context) {
         // Store the value of notifications in SharedPreferences
         SharedPreferences.Editor editor =
             PreferenceManager.getDefaultSharedPreferences(context).edit();
 
-        editor.putBoolean(MessagingPreferenceActivity.NOTIFICATION_ENABLED, enabled);
+        editor.putBoolean(key, enabled);
 
         editor.apply();
     }
