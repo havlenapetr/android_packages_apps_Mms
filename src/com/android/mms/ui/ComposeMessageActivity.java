@@ -2046,7 +2046,9 @@ public class ComposeMessageActivity extends Activity
     protected void onResume() {
         super.onResume();
 
-        mEarDetector.enable(true);
+        if (mEarDetector.isInitzialized()) {
+            mEarDetector.enable(true);
+        }
 
         // OLD: get notified of presence updates to update the titlebar.
         // NEW: we are using ContactHeaderWidget which displays presence, but updating presence
@@ -2075,7 +2077,9 @@ public class ComposeMessageActivity extends Activity
     protected void onPause() {
         super.onPause();
 
-        mEarDetector.enable(false);
+        if (mEarDetector.isInitzialized()) {
+            mEarDetector.enable(false);
+        }
 
         // OLD: stop getting notified of presence updates to update the titlebar.
         // NEW: we are using ContactHeaderWidget which displays presence, but updating presence
@@ -2175,7 +2179,7 @@ public class ComposeMessageActivity extends Activity
 
     @Override
     public void onEarDetected(boolean earDetected) {
-        if(earDetected) {
+        if (earDetected) {
             dialRecipient();
         }
     }

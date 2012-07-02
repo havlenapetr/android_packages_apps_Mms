@@ -61,11 +61,16 @@ public class EarDetector {
         mDispatcher = new Dispatcher(listener);
         mSensorManager = (SensorManager)ctx.getSystemService(Context.SENSOR_SERVICE);
 
-        mSensors = new ArrayList<SensorStruct>(2);
-        mSensors.add(new SensorStruct(
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), new AccelerometerHandler()));
-        mSensors.add(new SensorStruct(
-                mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY), new ProximityHandler()));
+        Sensor accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        Sensor proximity = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+
+        if (accelerometer != null && proximity != null) {
+            mSensors = new ArrayList<SensorStruct>(2);
+            mSensors.add(new SensorStruct(accelerometer, new AccelerometerHandler()));
+            mSensors.add(new SensorStruct(proximity, new ProximityHandler()));
+        } else {
+            mSensors = null;
+        }
     }
 
     private SensorStruct getAccelerometer() {
@@ -76,7 +81,15 @@ public class EarDetector {
         return mSensors.get(SENSOR_PROXIMITY);
     }
 
+    public boolean isInitzialized() {
+        return mSensors != null;
+    }
+
     public void enable(boolean enable) {
+        if (!isInitzialized()) {
+            throw new RuntimeException("Accelerometer or proximity sensor isn't presented on device!");
+        }
+
         SensorStruct accelerometer = getAccelerometer();
         SensorStruct proximity = getProximity();
         if (enable) {
@@ -99,7 +112,7 @@ public class EarDetector {
                 return false;
             }
 
-            if(sensorValue.real != value) {
+            if (sensorValue.real != value) {
                 sensorValue.pending = value;
             } else {
                 sensorValue.pending = -1;
@@ -111,14 +124,14 @@ public class EarDetector {
 
     private void setProximity(int distance) {
         SensorStruct proximity = getProximity();
-        if(setValue(proximity.value, distance)) {
+        if (setValue(proximity.value, distance)) {
             mDispatcher.dispatchProximity(proximity.value);
         }
     }
 
     private void setOrientation(int orientation) {
         SensorStruct accelerometer = getAccelerometer();
-        if(setValue(accelerometer.value, orientation)) {
+        if (setValue(accelerometer.value, orientation)) {
             mDispatcher.dispatchOrientation(accelerometer.value);
         }
     }
@@ -158,11 +171,11 @@ public class EarDetector {
                     break;
             }
 
-            if(!mOrientationVal.isExpired(TIMEOUT) && !mProximityVal.isExpired(TIMEOUT)) {
+            if (!mOrientationVal.isExpired(TIMEOUT) && !mProximityVal.isExpired(TIMEOUT)) {
                 boolean enable = mOrientationVal.real == ORIENTATION_VERTICAL &&
                         mProximityVal.real == DISTANCE_NEAR;
                 // Report only if change occured
-                if(enable != mLastValue) {
+                if (enable != mLastValue) {
                     mListener.onEarDetected(enable);
                     mLastValue = enable;
                 }
@@ -210,7 +223,7 @@ public class EarDetector {
             // convert to degrees
             angle = angle * 180.0 / Math.PI;
             int orientation = (angle >  VERTICAL_ANGLE ? ORIENTATION_VERTICAL : ORIENTATION_HORIZONTAL);
-            if(DEBUG) Log.i(TAG, "Orientation: " + orientation);
+            if (DEBUG) Log.i(TAG, "Orientation: " + orientation);
             setOrientation(orientation);
         }
     }
@@ -223,7 +236,7 @@ public class EarDetector {
         @Override
         public void onSensorChanged(SensorEvent event) {
             double distance = event.values[0];
-            if(DEBUG) Log.i(TAG, String.format("Proximity: distance(%f)", distance));
+            if (DEBUG) Log.i(TAG, String.format("Proximity: distance(%f)", distance));
             setProximity(distance > 0 ? DISTANCE_FAR : DISTANCE_NEAR);
         }
     }
