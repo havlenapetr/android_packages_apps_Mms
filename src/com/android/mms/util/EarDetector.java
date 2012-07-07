@@ -73,6 +73,12 @@ public class EarDetector {
         }
     }
 
+    public static boolean isSupported(Context ctx) {
+        SensorManager sensorManager = (SensorManager)ctx.getSystemService(Context.SENSOR_SERVICE);
+        return sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null &&
+                sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY) != null;
+    }
+
     private SensorStruct getAccelerometer() {
         return mSensors.get(SENSOR_ACCELEROMETER);
     }

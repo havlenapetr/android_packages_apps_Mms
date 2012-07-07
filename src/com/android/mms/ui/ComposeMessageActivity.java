@@ -55,6 +55,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.DialogInterface.OnClickListener;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -73,6 +74,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Parcelable;
 import android.os.SystemProperties;
+import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.Contacts;
@@ -2042,11 +2044,17 @@ public class ComposeMessageActivity extends Activity
         }
     }
 
+    private boolean isEarDetectorAllowed() {
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        return p.getBoolean(MessagingPreferenceActivity.EAR_DETECTOR_ENABLED, false) &&
+                mEarDetector.isInitzialized();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
 
-        if (mEarDetector.isInitzialized()) {
+        if (isEarDetectorAllowed()) {
             mEarDetector.enable(true);
         }
 
@@ -2077,7 +2085,7 @@ public class ComposeMessageActivity extends Activity
     protected void onPause() {
         super.onPause();
 
-        if (mEarDetector.isInitzialized()) {
+        if (isEarDetectorAllowed()) {
             mEarDetector.enable(false);
         }
 
